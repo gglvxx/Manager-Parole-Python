@@ -1,6 +1,8 @@
 # manager.py
 
 PAROLA_MASTER = "student2024"
+# Aceasta este "memoria" temporară a programului (RAM)
+seif_date = [] 
 
 def autentificare():
     print("\n=== SEIF DIGITAL v1.0 ===")
@@ -12,25 +14,39 @@ def afiseaza_meniu():
     print("1. Adaugă o parolă nouă")
     print("2. Vizualizează toate parolele")
     print("3. Ieșire")
-    optiune = input("Alege o opțiune (1/2/3): ")
-    return optiune
+    return input("Alege o opțiune (1/2/3): ")
 
-# Aici începe "Motorul" programului
+# --- FUNCȚII NOI ---
+
+def adauga_parola():
+    site = input("Pentru ce site/aplicație? ")
+    user = input("Care este numele de utilizator? ")
+    parola = input("Care este parola? ")
+    
+    # Cream un dictionar (o intrare in seif)
+    intrare = {
+        "site": site,
+        "user": user,
+        "parola": parola
+    }
+    
+    # Adaugam dictionarul in lista noastra mare
+    seif_date.append(intrare)
+    print(f"\n[SUCCES] Datele pentru {site} au fost salvate în memorie!")
+
+# -------------------
+
 if __name__ == "__main__":
     if autentificare():
-        print("Acces permis!")
-        
         while True:
             alegere = afiseaza_meniu()
             
             if alegere == "1":
-                print("\n[Logica pentru ADĂUGARE va fi aici]")
+                adauga_parola() # Apelăm funcția nouă
             elif alegere == "2":
-                print("\n[Logica pentru VIZUALIZARE va fi aici]")
+                print("\n[Logica pentru VIZUALIZARE urmează...]")
             elif alegere == "3":
                 print("Se închide seiful. La revedere!")
-                break # Această comandă oprește bucla while și închide programul
+                break
             else:
-                print("Opțiune invalidă, mai încearcă.")
-    else:
-        print("Acces interzis!")
+                print("Opțiune invalidă.")
