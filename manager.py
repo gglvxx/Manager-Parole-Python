@@ -4,6 +4,8 @@ import hashlib
 import base64
 import random
 import string
+import tkinter as tk
+from tkinter import messagebox, simpledialog, scrolledtext
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -11,119 +13,128 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # --- CONFIGURARE ---
 NUME_FISIER = "date_parole.json"
 FISIER_HASH = "master.hash"
+CULOARE_FUNDAL = "#1a2a6c" # Albastru inchis regal
+CULOARE_BUTON = "#f2a900"  # Galben auriu pentru contrast
 seif_date = []
+fernet = None
 
-# --- LOGICA DE SECURITATE ---
+# --- LOGICA DE SECURITATE (NESCHIMBATĂ) ---
 def genereaza_cheia(parola_text):
-    parola_bytes = parola_text.encode()
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=b'sare_pentru_securitate_ac',
         iterations=100000,
     )
-    key = base64.urlsafe_b64encode(kdf.derive(parola_bytes))
+    key = base64.urlsafe_b64encode(kdf.derive(parola_text.encode()))
     return Fernet(key)
 
-def autentificare_si_setare():
-    if not os.path.exists(FISIER_HASH):
-        print("\n=== PRIMA RULARE: CONFIGURARE SEIF ===")
-        noua_parola = input("Alege o Parolă Master pe care o vei tine minte: ")
-        hash_obj = hashlib.sha256(noua_parola.encode())
-        with open(FISIER_HASH, "w") as f:
-            f.write(hash_obj.hexdigest())
-        print("[SUCCES] Parola Master a fost salvată!")
-        return noua_parola
-    else:
-        print("\n=== LOGARE SEIF DIGITAL ===")
-        incercare = input("Introdu Parola Master: ")
-        hash_incercare = hashlib.sha256(incercare.encode()).hexdigest()
-        with open(FISIER_HASH, "r") as f:
-            hash_salvat = f.read()
-        if hash_incercare == hash_salvat:
-            print("Acces permis!")
-            return incercare
-        else:
-            print("Acces interzis! Parolă greșită.")
-            exit()
-
-# --- FUNCTIE GENERATOR ---
-def genereaza_parola_aleatorie(lungime=12):
-    # Litere mari, mici, cifre și simboluri
-    caractere = string.ascii_letters + string.digits + string.punctuation
-    parola = ''.join(random.choice(caractere) for i in range(lungime))
-    return parola
-
 # --- GESTIUNE DATE ---
-def incarca_date(fernet_obj):
+def incarca_date():
     global seif_date
     if os.path.exists(NUME_FISIER):
         with open(NUME_FISIER, "rb") as f:
-            continut_criptat = f.read()
-            if len(continut_criptat) == 0: return
+            continut = f.read()
+            if not continut: return
             try:
-                date_decriptate = fernet_obj.decrypt(continut_criptat)
-                seif_date = json.loads(date_decriptate)
-            except:
-                seif_date = []
-    else:
-        seif_date = []
+                seif_date = json.loads(fernet.decrypt(continut))
+            except: seif_date = []
 
-def salveaza_date(fernet_obj):
-    date_json = json.dumps(seif_date).encode()
-    date_criptate = fernet_obj.encrypt(date_json)
+def salveaza_date():
+    date_criptate = fernet.encrypt(json.dumps(seif_date).encode())
     with open(NUME_FISIER, "wb") as f:
         f.write(date_criptate)
 
-# --- ACTIUNI ---
-def afiseaza_meniu():
-    print("\n--- MENIU ---")
-    print("1. Adaugă o parolă nouă")
-    print("2. Vizualizează toate parolele")
-    print("3. Ieșire")
-    return input("Alege o opțiune (1/2/3): ")
+# --- FUNCTII INTERFATA ---
 
-def adauga_parola(fernet_obj):
-    site = input("Site/Aplicație: ")
-    user = input("Username: ")
-    
-    # Aici este alegerea utilizatorului pentru fiecare parola in parte
-    print(f"\nConfigurare parolă pentru {site}:")
-    optiune = input("Vrei să generezi o parolă aleatorie sigură? (da/nu): ").lower()
-    
-    if optiune == 'da' or optiune == 'd':
-        parola = genereaza_parola_aleatorie()
-        print(f"Parola generată automat este: {parola}")
+def login():
+    global fernet
+    parola = entry_parola.get()
+    hash_incercare = hashlib.sha256(parola.encode()).hexdigest()
+
+    if not os.path.exists(FISIER_HASH):
+        with open(FISIER_HASH, "w") as f: f.write(hash_incercare)
     else:
-        parola = input("Introdu parola dorită de tine: ")
-    
-    seif_date.append({"site": site, "user": user, "parola": parola})
-    salveaza_date(fernet_obj)
-    print(f"[OK] Datele pentru {site} au fost criptate și salvate!")
+        with open(FISIER_HASH, "r") as f:
+            if hash_incercare != f.read():
+                messagebox.showerror("Eroare", "Parolă Master incorectă!")
+                return
 
-def vizualizeaza_parole():
+    fernet = genereaza_cheia(parola)
+    incarca_date()
+    fereastra_login.destroy()
+    creaza_fereastra_principala()
+
+def adauga_parola_gui():
+    site = simpledialog.askstring("Adăugare", "Numele aplicației (ex: Facebook):")
+    if not site: return
+    user = simpledialog.askstring("Adăugare", "Nume utilizator:")
+    
+    if messagebox.askyesno("Parolă", "Vrei o parolă generată automat?"):
+        caractere = string.ascii_letters + string.digits + "!@#$%^&*"
+        parola = ''.join(random.choice(caractere) for _ in range(16))
+        messagebox.showinfo("Parolă Generată", f"Parola ta este:\n{parola}")
+    else:
+        parola = simpledialog.askstring("Adăugare", "Introdu parola manual:", show='*')
+
+    if site and user and parola:
+        seif_date.append({"site": site, "user": user, "parola": parola})
+        salveaza_date()
+        messagebox.showinfo("Succes", "Datele au fost salvate în seif!")
+
+def afiseaza_parole_gui():
+    fereastra_lista = tk.Toplevel()
+    fereastra_lista.title("Seif - Vizualizare")
+    fereastra_lista.geometry("450x400")
+    fereastra_lista.configure(bg=CULOARE_FUNDAL)
+    
+    txt_area = scrolledtext.ScrolledText(fereastra_lista, font=("Consolas", 10))
+    txt_area.pack(pady=20, padx=20, expand=True, fill="both")
+    
     if not seif_date:
-        print("\n[!] Seiful este gol.")
+        txt_area.insert(tk.INSERT, "Momentan seiful este gol.")
     else:
-        print("\n--- PAROLELE TALE SALVATE ---")
         for el in seif_date:
-            print(f"SITE: {el['site']} | USER: {el['user']} | PASS: {el['parola']}")
-        print("-----------------------------")
+            info = f"APLICAȚIE: {el['site'].upper()}\nUSER: {el['user']}\nPASS: {el['parola']}\n{'_'*40}\n\n"
+            txt_area.insert(tk.INSERT, info)
+    txt_area.configure(state='disabled')
 
-# --- START ---
-if __name__ == "__main__":
-    parola_master = autentificare_si_setare()
-    fernet = genereaza_cheia(parola_master)
-    incarca_date(fernet)
+def creaza_fereastra_principala():
+    root = tk.Tk()
+    root.title("Seif Digital - Automatizări")
+    root.geometry("400x450")
+    root.configure(bg=CULOARE_FUNDAL)
+
+    # Titlu mare centrat
+    tk.Label(root, text="DASHBOARD SEIF", font=("Helvetica", 18, "bold"), 
+             fg="white", bg=CULOARE_FUNDAL).pack(pady=30)
     
-    while True:
-        alegere = afiseaza_meniu()
-        if alegere == "1":
-            adauga_parola(fernet)
-        elif alegere == "2":
-            vizualizeaza_parole()
-        elif alegere == "3":
-            print("Se închide seiful. La revedere!")
-            break
-        else:
-            print("Opțiune invalidă.")
+    # Stil butoane: mari, centrate, fara cifre
+    stil_butoane = {"font": ("Arial", 11, "bold"), "bg": CULOARE_BUTON, "fg": "black", 
+                    "width": 25, "pady": 15, "cursor": "hand2", "bd": 0}
+
+    tk.Button(root, text="Adaugă Parolă Nouă", command=adauga_parola_gui, **stil_butoane).pack(pady=10)
+    tk.Button(root, text="Vizualizează Seiful", command=afiseaza_parole_gui, **stil_butoane).pack(pady=10)
+    
+    # Buton iesire rosu
+    tk.Button(root, text="Închide Seiful", command=root.quit, font=("Arial", 11, "bold"),
+              bg="#d9534f", fg="white", width=25, pady=15, bd=0).pack(pady=30)
+
+    root.mainloop()
+
+# --- START LOGIN ---
+fereastra_login = tk.Tk()
+fereastra_login.title("Securitate")
+fereastra_login.geometry("350x250")
+fereastra_login.configure(bg=CULOARE_FUNDAL)
+
+tk.Label(fereastra_login, text="INTRODU PAROLA MASTER", font=("Arial", 10, "bold"),
+         fg="white", bg=CULOARE_FUNDAL).pack(pady=(40, 10))
+
+entry_parola = tk.Entry(fereastra_login, show="*", font=("Arial", 14), justify='center')
+entry_parola.pack(pady=10, padx=40)
+
+tk.Button(fereastra_login, text="DESCHIDE SEIFUL", command=login, bg=CULOARE_BUTON,
+          fg="black", font=("Arial", 10, "bold"), width=20, pady=10, bd=0).pack(pady=20)
+
+fereastra_login.mainloop()
