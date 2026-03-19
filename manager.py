@@ -1,7 +1,6 @@
 # manager.py
 
 PAROLA_MASTER = "student2024"
-# Aceasta este "memoria" temporară a programului (RAM)
 seif_date = [] 
 
 def autentificare():
@@ -16,35 +15,37 @@ def afiseaza_meniu():
     print("3. Ieșire")
     return input("Alege o opțiune (1/2/3): ")
 
-# --- FUNCȚII NOI ---
-
 def adauga_parola():
     site = input("Pentru ce site/aplicație? ")
     user = input("Care este numele de utilizator? ")
     parola = input("Care este parola? ")
     
-    # Cream un dictionar (o intrare in seif)
-    intrare = {
-        "site": site,
-        "user": user,
-        "parola": parola
-    }
-    
-    # Adaugam dictionarul in lista noastra mare
+    intrare = {"site": site, "user": user, "parola": parola}
     seif_date.append(intrare)
-    print(f"\n[SUCCES] Datele pentru {site} au fost salvate în memorie!")
+    print(f"\n[SUCCES] Datele pentru {site} au fost salvate!")
 
-# -------------------
+# --- FUNCȚIA NOUĂ ---
+
+def vizualizeaza_parole():
+    if not seif_date: # Verificăm dacă lista este goală
+        print("\n[!] Seiful este gol. Nu ai nicio parolă salvată.")
+    else:
+        print("\n--- DATELE TALE SALVATE ---")
+        # Folosim o buclă 'for' pentru a trece prin fiecare dicționar din listă
+        for element in seif_date:
+            print(f"Site: {element['site']} | User: {element['user']} | Parola: {element['parola']}")
+        print("---------------------------")
+
+# --------------------
 
 if __name__ == "__main__":
     if autentificare():
         while True:
             alegere = afiseaza_meniu()
-            
             if alegere == "1":
-                adauga_parola() # Apelăm funcția nouă
+                adauga_parola()
             elif alegere == "2":
-                print("\n[Logica pentru VIZUALIZARE urmează...]")
+                vizualizeaza_parole() # Apelăm funcția nouă
             elif alegere == "3":
                 print("Se închide seiful. La revedere!")
                 break
